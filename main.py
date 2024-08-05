@@ -4,7 +4,6 @@ import re
 import json
 import time
 
-
 def upload_image(image_path):
     # Encode the image to base64
     with open(image_path, "rb") as image_file:
@@ -15,7 +14,6 @@ def upload_image(image_path):
     data = {
         "image": base64_image
     }
-    
     # POST request to upload the image
     url = "https://pimeyes.com/api/upload/file"
     headers = {
@@ -24,7 +22,6 @@ def upload_image(image_path):
     }
     cookies=requests.cookies.RequestsCookieJar()
     response = requests.post(url, headers=headers, cookies=cookies, json=data)
-    
     if response.status_code == 200:
         print("Image uploaded successfully.")
         #print(response.text)
@@ -56,7 +53,6 @@ def exec_search(cookies,search_id):
     'accept-encoding':'gzip, deflate',
     'accept-language':'en-US,en;q=0.9'
     }
-    
     url = "https://pimeyes.com/api/search/new"
     data = {
     "faces": [search_id],
@@ -64,20 +60,6 @@ def exec_search(cookies,search_id):
     "type": "PREMIUM_SEARCH",
     "g-recaptcha-response": None
     }
-    """
-    print(cookies)
-    print(data)
-    req=requests.Request('POST',url,cookies=cookies,data=data)
-    prepared=req.prepare()
-    print(f'Method: {prepared.method}')
-    print(f'URL: {prepared.url}')
-    print('Headers:')
-    for k, v in prepared.headers.items():
-        print(f'  {k}: {v}')
-    print('Body:')
-    print(prepared.body)
-    time.sleep(1000)
-    """
     response = requests.post(url,headers=headers,json=data,cookies=cookies)
     if response.status_code == 200:
         # Extract the JSON response body
@@ -90,7 +72,6 @@ def exec_search(cookies,search_id):
         print(f"Failed to get searchHash. Status code: {response.status_code}")
         print(response.text)
         return None, None
-
 
 def extract_url_from_html(html_content):
     # Define the regular expression pattern to find api-url="my_url"
@@ -153,7 +134,6 @@ def hex_to_ascii(hex_string):
 
 def process_thumbnails(json_data):
     results = json_data.get('results', [])
-    
     for result in results:
         thumbnail_url = result.get('thumbnailUrl', '')
         # Extract the hex part after /proxy/
