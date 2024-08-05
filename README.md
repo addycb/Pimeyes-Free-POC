@@ -10,4 +10,5 @@ Use:
 Result: You will receive a collection of unobfuscated results, namely links to where that face was found.
 
 
-More on Pimeyes:https://www-brigadaosint-com.translate.goog/pimeyes-urgent-red-flags-henk-van-essel-osint/?_x_tr_sl=auto&_x_tr_tl=en&_x_tr_hl=en&_x_tr_pto=nui
+More on Pimeyes:
+https://www-brigadaosint-com.translate.goog/pimeyes-urgent-red-flags-henk-van-essel-osint/?_x_tr_sl=auto&_x_tr_tl=en&_x_tr_hl=en&_x_tr_pto=nui
