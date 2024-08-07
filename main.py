@@ -133,8 +133,6 @@ def get_results(url,search_hash):
     response = requests.post(url, headers=headers, json=data)
     if response.status_code == 200:
         print("Results obtained successfully.")
-        #{"archiveResults":0,"isMoreResults":false,"numberOfResults":0,"results":[],"time":2015,"type":"FREE_SEARCH"}
-        #Add a message if results are empty
         return response.json()
     else:
         print(f"Failed to obtain results. Status code: {response.status_code}")
