@@ -4,6 +4,26 @@ import re
 import json
 import time
 import os
+import random
+
+def select_random_user_agent(file_path):
+    current_dir = os.path.dirname(__file__)
+    file_path = os.path.join(current_dir, file_path)
+    try:
+        with open(file_path, 'r') as file:
+            lines = file.readlines()
+            if not lines:
+                raise ValueError("The file is empty")
+            
+            # Select a random line
+            random_line = random.choice(lines).strip()
+            return random_line
+    
+    except FileNotFoundError:
+        print(f"Error: The file '{file_path}' does not exist.")
+    except ValueError as ve:
+        print(ve)
+
 
 def upload_image(image_path):
     # Encode the image to base64
@@ -43,8 +63,7 @@ def exec_search(cookies,search_id):
     'accept':'application/json, text/plain, */*',
     'content-type':'application/json',
     'sec-ch-ua-mobile': '?0',
-    'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.5249.62 Safari/537.36',
-    'sec-ch-ua-platform':'"Linux"',
+    'user-agent':user_agent,
     'origin':'https://pimeyes.com',
     'sec-fetch-site':'same-origin',
     'sec-fetch-mode':'cors',
@@ -103,8 +122,7 @@ def get_results(url,search_hash):
     'accept':'application/json, text/plain, */*',
     'content-type':'application/json',
     'sec-ch-ua-mobile': '?0',
-    'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.5249.62 Safari/537.36',
-    'sec-ch-ua-platform':'"Linux"',
+    'user-agent':user_agent,
     'origin':'https://pimeyes.com',
     'sec-fetch-site':'same-origin',
     'sec-fetch-mode':'cors',
@@ -179,5 +197,6 @@ def search(image_path):
     res=get_results(serverurl,search_hash)
     process_thumbnails(res)
 
+user_agent=select_random_user_agent("user-agents.txt")
 image_path=getimg()
 search(image_path)
