@@ -3,6 +3,10 @@ import base64
 import re
 import json
 import time
+import os
+
+def changeproxy():
+    print("Changing proxy")
 
 def upload_image(image_path):
     # Encode the image to base64
@@ -71,6 +75,9 @@ def exec_search(cookies,search_id):
     else:
         print(f"Failed to get searchHash. Status code: {response.status_code}")
         print(response.text)
+        if '"error":"FREE_SEARCH_LIMIT_EXCEEDED"' in response.text:
+            if(changeproxy()):
+                return
         return None, None
 
 def extract_url_from_html(html_content):
@@ -145,11 +152,21 @@ def process_thumbnails(json_data):
             ascii_text=ascii_text.get('url')
             print(ascii_text)
 
-def search():
+def getimg():
     print("Starting new search")
-    # Call the upload img func to get cookies and searchid 
-    print("Input path to image:")
-    image_path=input().strip()
+    
+    while True:
+        # Call the upload img func to get cookies and searchid 
+        print("Input path to image:")
+        image_path = input().strip()
+        
+        # Check if the file exists and is a file
+        if os.path.isfile(image_path):
+            return image_path
+        else:
+            print("Invalid file path. Please try again.")
+
+def search(image_path):
     cookies,search_id=upload_image(image_path)
     # Set needed cookies
     cookies.set("payment_gateway_v3","fastspring",domain="pimeyes.com")
@@ -165,4 +182,5 @@ def search():
     res=get_results(serverurl,search_hash)
     process_thumbnails(res)
 
-search()
+image_path=getimg()
+search(image_path)
