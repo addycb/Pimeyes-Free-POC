@@ -29,7 +29,6 @@ def upload_image(image_path):
     # Encode the image to base64
     with open(image_path, "rb") as image_file:
         base64_image = base64.b64encode(image_file.read()).decode('utf-8')
-    image_file.close()
     base64_image="data:image/jpeg;base64,"+base64_image
     # Prepare the payload
     data = {
