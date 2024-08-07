@@ -5,10 +5,6 @@ import json
 import time
 import os
 
-def changeproxy():
-    print("Changing proxy")
-    return True
-
 def upload_image(image_path):
     # Encode the image to base64
     with open(image_path, "rb") as image_file:
@@ -39,7 +35,7 @@ def upload_image(image_path):
         print(response.json())
         return None, None
 
-def exec_search(cookies,search_id,image_path):
+def exec_search(cookies,search_id):
     #Cookies are already Setup, hope uploadperms cookie is
     #Headers are good
     headers = {
@@ -75,11 +71,6 @@ def exec_search(cookies,search_id,image_path):
     else:
         print(f"Failed to get searchHash. Status code: {response.status_code}")
         print(response.text)
-        if '"error":"FREE_SEARCH_LIMIT_EXCEEDED"' in response.text:
-            if(changeproxy()):
-                print(cookies.get_dict())
-                time.sleep(5)
-                return search(image_path)
         return None, None
 
 def extract_url_from_html(html_content):
@@ -145,6 +136,8 @@ def hex_to_ascii(hex_string):
 
 def process_thumbnails(json_data):
     results = json_data.get('results', [])
+    if len(results) == 0:
+        print("Search successful, but no matches found.")
     for result in results:
         thumbnail_url = result.get('thumbnailUrl', '')
         # Extract the hex part after /proxy/
@@ -176,7 +169,7 @@ def search(image_path):
     cookies.set("payment_gateway_v3","fastspring",domain="pimeyes.com")
     cookies.set("uploadPermissions",str(time.time()*1000)[:13],domain="pimeyes.com")
     #Execute search to get search hash info
-    search_hash, search_collector_hash = exec_search(cookies,search_id,image_path)
+    search_hash, search_collector_hash = exec_search(cookies,search_id)
     if search_hash and search_collector_hash and cookies:
         # Now you can use search_hash and session_cookies for further API calls
         print("Ready for further API calls.")
