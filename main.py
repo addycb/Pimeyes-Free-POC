@@ -7,6 +7,7 @@ import os
 
 def changeproxy():
     print("Changing proxy")
+    return True
 
 def upload_image(image_path):
     # Encode the image to base64
@@ -38,7 +39,7 @@ def upload_image(image_path):
         print(response.json())
         return None, None
 
-def exec_search(cookies,search_id):
+def exec_search(cookies,search_id,image_path):
     #Cookies are already Setup, hope uploadperms cookie is
     #Headers are good
     headers = {
@@ -47,7 +48,6 @@ def exec_search(cookies,search_id):
     'content-type':'application/json',
     'sec-ch-ua-mobile': '?0',
     'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.5249.62 Safari/537.36',
-    'x-user-id':'e21aeec17e0d256f0b97748a068ca24d',
     'sec-ch-ua-platform':'"Linux"',
     'origin':'https://pimeyes.com',
     'sec-fetch-site':'same-origin',
@@ -77,7 +77,9 @@ def exec_search(cookies,search_id):
         print(response.text)
         if '"error":"FREE_SEARCH_LIMIT_EXCEEDED"' in response.text:
             if(changeproxy()):
-                return
+                print(cookies.get_dict())
+                time.sleep(5)
+                return search(image_path)
         return None, None
 
 def extract_url_from_html(html_content):
@@ -123,6 +125,8 @@ def get_results(url,search_hash):
     response = requests.post(url, headers=headers, json=data)
     if response.status_code == 200:
         print("Results obtained successfully.")
+        #{"archiveResults":0,"isMoreResults":false,"numberOfResults":0,"results":[],"time":2015,"type":"FREE_SEARCH"}
+        #Add a message if results are empty
         return response.json()
     else:
         print(f"Failed to obtain results. Status code: {response.status_code}")
@@ -172,7 +176,7 @@ def search(image_path):
     cookies.set("payment_gateway_v3","fastspring",domain="pimeyes.com")
     cookies.set("uploadPermissions",str(time.time()*1000)[:13],domain="pimeyes.com")
     #Execute search to get search hash info
-    search_hash, search_collector_hash = exec_search(cookies,search_id)
+    search_hash, search_collector_hash = exec_search(cookies,search_id,image_path)
     if search_hash and search_collector_hash and cookies:
         # Now you can use search_hash and session_cookies for further API calls
         print("Ready for further API calls.")
