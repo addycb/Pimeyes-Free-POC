@@ -46,6 +46,9 @@ def upload_image(image_path):
         print("Image uploaded successfully.")
         #print(response.text)
         #print(response.json().get("faces")[0]["id"])
+        if not(response.json().get("faces")):
+            print("No faces found in uploaded image.")
+            return None, None
         return response.cookies,response.json().get("faces")[0]["id"]
     else:
         print(f"Failed to upload image. Status code: {response.status_code}")
@@ -81,7 +84,7 @@ def exec_search(cookies,search_id):
     response = requests.post(url,headers=headers,json=data,cookies=cookies)
     if response.status_code == 200:
         # Extract the JSON response body
-        print(response.text)
+        #print(response.text)
         json_response = response.json()
         search_hash = json_response.get("searchHash")
         search_collector_hash = json_response.get("searchCollectorHash")
@@ -180,6 +183,8 @@ def getimg():
 
 def search(image_path):
     cookies,search_id=upload_image(image_path)
+    if cookies==None:
+        return
     # Set needed cookies
     cookies.set("payment_gateway_v3","fastspring",domain="pimeyes.com")
     cookies.set("uploadPermissions",str(time.time()*1000)[:13],domain="pimeyes.com")
