@@ -13,7 +13,7 @@ class PimeyesGUI:
     def __init__(self, master):
         self.master = master
         master.title("Pimeyes Image Search")
-        master.geometry("600x500")
+        master.geometry("600x600")
 
         self.label = tk.Label(master, text="Select an image to search:")
         self.label.pack()
