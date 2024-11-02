@@ -29,11 +29,21 @@ class PimeyesGUI:
         self.result_area.pack(padx=10, pady=10)
 
         self.save_button = tk.Button(master, text="Save Results", command=self.save_results, state=tk.DISABLED)
-        self.save_button.pack(pady=10)
+        self.save_button.pack(side=tk.LEFT, padx=10, pady=10)
+
+        self.clear_button = tk.Button(master, text="Clear Output", command=self.clear_output)
+        self.clear_button.pack(side=tk.RIGHT, padx=10, pady=10)
 
         self.image_path = None
         self.user_agent = self.select_random_user_agent("user-agents.txt")
         self.results = []
+
+        # Create a context menu
+        self.context_menu = tk.Menu(self.result_area, tearoff=0)
+        self.context_menu.add_command(label="Copy", command=self.copy_text)
+
+        # Bind the context menu to the result_area
+        self.result_area.bind("<Button-3>", self.show_context_menu)
 
     def select_image(self):
         self.image_path = filedialog.askopenfilename(filetypes=[("Image files", "*.jpg *.jpeg *.png")])
@@ -102,6 +112,10 @@ class PimeyesGUI:
                 messagebox.showinfo("Save Successful", f"Results saved to {file_path}")
             except Exception as e:
                 messagebox.showerror("Save Error", f"An error occurred while saving: {str(e)}")
+
+    def clear_output(self):
+        self.result_area.delete('1.0', tk.END)
+        self.save_button['state'] = tk.DISABLED
 
     def select_random_user_agent(self, file_path):
         try:
@@ -191,8 +205,12 @@ class PimeyesGUI:
             url = f"https://pimeyes.com/en/results/{search_collector_hash}_{search_hash}?query={search_id}"
             response = requests.get(url, cookies=cookies)
             if response.status_code == 200:
-                self.result_area.insert(tk.END, "Found correct server.\n")
-                return self.extract_url_from_html(response.text)
+                server_url = self.extract_url_from_html(response.text)
+                if server_url:
+                    return server_url
+                else:
+                    self.result_area.insert(tk.END, "Failed to extract server URL from HTML.\n")
+                    return None
             else:
                 self.result_area.insert(tk.END, f"Failed to find results. Status code: {response.status_code}\n")
                 return None
@@ -255,6 +273,19 @@ class PimeyesGUI:
                     self.results.append(ascii_text)
                 except json.JSONDecodeError:
                     self.result_area.insert(tk.END, f"Error decoding JSON for thumbnail: {thumbnail_url}\n")
+
+    def copy_text(self):
+        try:
+            self.result_area.clipboard_clear()
+            self.result_area.clipboard_append(self.result_area.selection_get())
+        except tk.TclError:
+            pass
+
+    def show_context_menu(self, event):
+        try:
+            self.context_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self.context_menu.grab_release()
 
 root = tk.Tk()
 gui = PimeyesGUI(root)
