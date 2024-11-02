@@ -14,6 +14,7 @@ class PimeyesGUI:
         self.master = master
         master.title("Pimeyes Image Search")
         master.geometry("600x600")
+        master.resizable(False, False)
 
         self.label = tk.Label(master, text="Select an image to search:")
         self.label.pack()
