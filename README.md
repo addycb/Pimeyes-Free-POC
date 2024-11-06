@@ -14,4 +14,16 @@ Use:
 
 *IMAGES HAVE TO BE A JPG*
 
+# For a HTML page using flask
+
+    python -m venv venv
+
+</br>
+
+    source venv/bin/activate
+
+</br>
+
+    pip install flask request
+
 Result: You will receive a collection of unobfuscated results, namely links to where that face was found.
