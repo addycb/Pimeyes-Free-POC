@@ -10,6 +10,8 @@ Use:
 4. Select the image you want to search
 5. Save the results
 6. ????
-7. Profit 
+7. Profit
+
+*IMAGES HAVE TO BE A JPG*
 
 Result: You will receive a collection of unobfuscated results, namely links to where that face was found.
