@@ -1,4 +1,4 @@
-# 👁️ Pimeyes_Free_POC  
+# 👁️ Pimeyes Free POC (proof of concept)
 A proof of concept exploit tool to bypass Pimeyes' obfuscation and provide full premium search results.
 Despite attempts to contact Pimeyes, no response was received, leading to the publication of the tool.
 It enabling retrieval of unobfuscated web links from search results.  
@@ -12,7 +12,7 @@ Use:
 6. ????
 7. Profit
 
-*IMAGES HAVE TO BE A JPG*
+*IMAGES HAVE TO BE A JPG, possibly*
 
 # For a HTML page using flask
 
