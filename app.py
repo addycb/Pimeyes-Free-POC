@@ -14,6 +14,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
 
+# Set the maximum upload size to 100MB
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100 MB
+
 def select_random_user_agent(file_path):
     try:
         with open(file_path, 'r') as file:
