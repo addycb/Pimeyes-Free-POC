@@ -31,6 +31,22 @@
             font-weight: bold;
             color: #4a4a4a;
         }
+        .adult-warning {
+            background-color: #ffcccc;
+            color: red;
+            padding: 5px;
+            font-weight: bold;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .social-ecommerce-label {
+            background-color: #ccffcc;
+            color: green;
+            padding: 5px;
+            font-weight: bold;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
         .back-button {
             margin-bottom: 20px;
             padding: 10px 20px;
@@ -57,7 +73,18 @@
                     <img src="{{ result.thumbnail_url }}" alt="Thumbnail">
                 </a>
                 <p class="site-info">Site: {{ result.site }}</p>
-                <!-- <p>{{ result.account_info }}</p> -->
+                
+                {% if result.is_adult %}
+                    <div class="adult-warning">
+                        Warning: This site may contain adult content.
+                    </div>
+                {% endif %}
+                
+                {% if result.is_social_e_commerce %}
+                    <div class="social-ecommerce-label">
+                        Note: This is a social e-commerce site.
+                    </div>
+                {% endif %}
             </div>
         {% endfor %}
     </div>
