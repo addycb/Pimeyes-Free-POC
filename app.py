@@ -135,6 +135,71 @@ def hex_to_ascii(hex_string):
     bytes_data = bytes.fromhex(hex_string)
     return bytes_data.decode('ascii', errors='ignore')
 
+def classify_site(url):
+    if is_adult_site(url):
+        return "Adult Site"
+    elif is_social_e_commerce_site(url):
+        return "Social E-Commerce Site"
+    else:
+        return "Unclassified Site"
+
+def is_adult_site(url):
+    # Expanded list of known adult or borderline adult websites
+    adult_sites = [
+        'pornhub.com', 'xvideos.com', 'redtube.com', 'xhamster.com',
+        'curvage.org', 'onlyfans.com', 'fansly.com', 'cammodel.com', 'tube8.com', 
+        'bangbros.com', 'spankwire.com', 'youporn.com', 'metart.com', 
+        'javlibrary.com', 'brazzers.com', 'playboy.com', 'hustler.com', 
+        'chaturbate.com', 'cam4.com', 'myfreecams.com', 'livejasmin.com', 
+        'bongacams.com', 'camsoda.com', 'imlive.com', 'stripchat.com', 
+        'adultfriendfinder.com', 'fapdu.com', 'xxxbunker.com', 'cliphunter.com', 
+        'motherless.com', 'tnaflix.com', 'drtuber.com', 'pornmd.com', 
+        'xtube.com', 'xhamsterlive.com', 'camster.com', 'camwhores.tv', 
+        'private.com', 'naughtyamerica.com', '8muses.com',
+        'rule34.xxx', 'gelbooru.com', 'danbooru.donmai.us', 'e621.net',
+        'hentai-foundry.com', 'fakku.net', 'hentaihaven.org', 'hanime.tv',
+        'rule34hentai.net', 'pururin.to', 'hentai2read.com', 'doujins.com',
+        'fantasyfeeder.com', 'feedist.net', 'bbwchan.net', 'onlyfinder.com'
+    ]
+    
+    # Check if any of the adult site domains are in the page URL
+    for site in adult_sites:
+        if site in url:
+            return True
+    return False
+
+def is_social_e_commerce_site(url):
+    # List of known social e-commerce websites
+    social_e_commerce_sites = [
+        'pinterest.com', 'instagram.com', 'facebook.com', 'etsy.com', 
+        'poshmark.com', 'depop.com', 'mercari.com', 'letgo.com', 
+        'offerup.com', 'carousell.com', 'vinted.com', 'thredup.com', 
+        'tradesy.com', 'grailed.com', 'reverb.com', 'jet.com', 
+        'socialshopwave.com', 'shoploop.app', 'verishop.com', 'wanelo.com', 
+        'fancy.com', 'polyvore.com', 'liketoknow.it', 'shopstyle.com', 
+        'keep.com', 'lyst.com', 'mightybuy.co', 'yelpextensions.com', 
+        'shpock.com', 'rumgr.com', 'curtsyapp.com', '5miles.com', 
+        'swappa.com', 'wallapop.com', 'barnesandnoble.com', 'notonthehighstreet.com', 
+        'bigcartel.com', 'cratejoy.com', 'lazada.com', 'shopee.com',
+        'geekbuying.com', 'kikuu.com', 'carrefour.com', 'jumia.com', 
+        'tophatter.com', 'overstock.com', 'newegg.com', 'wayfair.com', 
+        'zalando.com', 'asos.com', 'fashionnova.com', 'boohoo.com', 
+        'shein.com', 'romwe.com', 'yesstyle.com', 'tictail.com', 
+        'dote.com', 'curtsy.com', 'shoptiques.com', 'beruby.com',
+        'indiebazaar.com', 'trendyol.com', 'flipkart.com', 'jabong.com',
+        'shopclues.com', 'ajio.com', 'myntra.com', 'snapdeal.com',
+        'kith.com', 'farfetch.com', 'mytheresa.com', 'mrporter.com',
+        'brownsfashion.com', 'matchesfashion.com', 'ssense.com', 'yoox.com',
+        'modaoperandi.com', 'vitrue.com', 'fancy.com', 'farfetch.com',
+        'poshmark.com', 'etsystatic.com', 'pinimg.com'
+    ]
+    
+    # Check if any of the social e-commerce site domains are in the page URL
+    for site in social_e_commerce_sites:
+        if site in url:
+            return True
+    return False
+
 def process_thumbnails(json_data):
     results = json_data.get('results', [])
     if not results:
@@ -151,16 +216,20 @@ def process_thumbnails(json_data):
                 ascii_data = json.loads(ascii_text)
                 page_url = ascii_data.get('url')
                 site = result.get('site', '')
-                if not site:
-                    # Extract domain from page_url if site is not provided
+                if not site and page_url:
                     site = re.search(r'https?://([^/]+)', page_url).group(1) if page_url else 'Unknown site'
+                
+                is_adult = is_adult_site(page_url)  # Check if the page is an adult site
+                is_social_e_commerce = is_social_e_commerce_site(page_url)  # Check if the page is a social e-commerce site
                 
                 if page_url:
                     processed_results.append({
                         "page_url": page_url,
                         "account_info": result.get('accountInfo', 'Not available'),
                         "thumbnail_url": thumbnail_url,
-                        "site": site
+                        "site": site,
+                        "is_adult": is_adult,  # Add adult site info
+                        "is_social_e_commerce": is_social_e_commerce  # Add social e-commerce info
                     })
             except json.JSONDecodeError:
                 print("Failed to decode JSON from ASCII text.")
