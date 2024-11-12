@@ -14,18 +14,6 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
 
-def select_random_user_agent(file_path):
-    try:
-        with open(file_path, 'r') as file:
-            lines = file.readlines()
-            if not lines:
-                raise ValueError("The file is empty")
-            return random.choice(lines).strip()
-    except FileNotFoundError:
-        print(f"Error: The file '{file_path}' does not exist.")
-    except ValueError as ve:
-        print(ve)
-
 def upload_image(base64_image):
     try:
         data = {"image": base64_image}
@@ -194,11 +182,9 @@ def index():
         # Process the cookies and proceed with the search
         cookies.set("payment_gateway_v3", "fastspring", domain="pimeyes.com")
         cookies.set("uploadPermissions", str(time.time() * 1000)[:13], domain="pimeyes.com")
-        
-        user_agent = select_random_user_agent("known_sites.txt")
 
         # Execute the search
-        search_hash, search_collector_hash = exec_search(cookies, search_id, user_agent)
+        search_hash, search_collector_hash = exec_search(cookies, search_id, "Mozilla/5.0")  # Default user agent
         if not (search_hash and search_collector_hash):
             return jsonify({"error": "Could not proceed with further API calls."})
         
@@ -207,7 +193,7 @@ def index():
             return jsonify({"error": "Failed to find server URL."})
 
         # Get the results
-        res = get_results(server_url, search_hash, user_agent)
+        res = get_results(server_url, search_hash, "Mozilla/5.0")  # Default user agent
         if res:
             results = process_thumbnails(res)
             return render_template('results.html', results=results)
