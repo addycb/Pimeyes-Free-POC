@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Results</title>
+    <style>
+        .result-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .result-item {
+            width: 200px;
+            text-align: center;
+        }
+        .result-item img {
+            max-width: 100%;
+            height: auto;
+        }
+        .site-info {
+            font-weight: bold;
+            color: #4a4a4a;
+        }
+    </style>
+</head>
+<body>
+    <h1>Search Results</h1>
+    <div class="result-container">
+        {% for result in results %}
+            <div class="result-item">
+                <a href="{{ result.page_url }}" target="_blank">
+                    <img src="{{ result.thumbnail_url }}" alt="Thumbnail">
+                </a>
+                <p class="site-info CDN">Site: {{ result.site }}</p>
+                <!-- <p>{{ result.account_info }}</p> -->
+            </div>
+        {% endfor %}
+    </div>
+</body>
+</html>
