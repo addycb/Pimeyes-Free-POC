@@ -31,3 +31,8 @@ Result: You will receive a collection of unobfuscated results, namely links to w
 
 
 Will probably change the title of this repo; so long as the maintainer of the original is ok with this, seems to work.
+
+Visual example of the results page inside the flask app:
+
+![image](https://github.com/user-attachments/assets/6b9d135b-0779-40bb-9799-9fb8e906994d)
+
