@@ -4,12 +4,178 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Search</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        form {
+            margin-top: 20px;
+        }
+        input[type="file"] {
+            margin-right: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+        #paste-area {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            margin-top: 20px;
+            min-height: 100px;
+        }
+        #paste-area.dragover {
+            background-color: #f0f0f0;
+        }
+        #pasted-image {
+            max-width: 100%;
+            margin-top: 10px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Upload an Image</h1>
-    <form action="/" method="post" enctype="multipart/form-data">
-        <input type="file" name="file" accept="image/*" required>
+    <h1>Upload or Paste an Image for Search</h1>
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+    <form id="upload-form" action="/" method="post" enctype="multipart/form-data">
+        <input type="file" name="file" accept="image/*">
+        <input type="hidden" id="pasted-image-data" name="pasted_image">
         <button type="submit">Search</button>
     </form>
+    <div id="paste-area">
+        <p>Or drag an image here, or paste an image from your clipboard</p>
+        <img id="pasted-image" src="" alt="Pasted image will appear here">
+    </div>
+    <script>
+        // Handle the drag and drop functionality
+        const pasteArea = document.getElementById('paste-area');
+
+        // Highlight the drop area when dragging over
+        pasteArea.addEventListener('dragover', function(event) {
+            event.preventDefault();
+            pasteArea.classList.add('dragover');
+        });
+
+        pasteArea.addEventListener('dragleave', function() {
+            pasteArea.classList.remove('dragover');
+        });
+
+        pasteArea.addEventListener('drop', function(event) {
+            event.preventDefault();
+            pasteArea.classList.remove('dragover');
+
+            const file = event.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const imgElement = document.createElement('img');
+                    imgElement.src = event.target.result;
+                    imgElement.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        const max_size = 1024; // Set the max size for the longest dimension
+                        let width = imgElement.width;
+                        let height = imgElement.height;
+
+                        // Resize the image to fit the max size
+                        if (width > height) {
+                            if (width > max_size) {
+                                height *= max_size / width;
+                                width = max_size;
+                            }
+                        } else {
+                            if (height > max_size) {
+                                width *= max_size / height;
+                                height = max_size;
+                            }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(imgElement, 0, 0, width, height);
+
+                        // Convert the resized image to a base64 string
+                        const dataUrl = canvas.toDataURL('image/jpeg');
+                        const imgElementForDisplay = document.getElementById('pasted-image');
+                        imgElementForDisplay.src = dataUrl;
+                        imgElementForDisplay.style.display = 'block';
+
+                        // Set the base64 image data to the hidden input field
+                        const inputElement = document.getElementById('pasted-image-data');
+                        inputElement.value = dataUrl;
+                    };
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Handle the paste functionality (for clipboard pasting)
+        document.addEventListener('paste', function(event) {
+            const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    const file = items[i].getAsFile();
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const imgElement = document.createElement('img');
+                        imgElement.src = event.target.result;
+                        imgElement.onload = function() {
+                            const canvas = document.createElement('canvas');
+                            const max_size = 1024; // Set the max size for the longest dimension
+                            let width = imgElement.width;
+                            let height = imgElement.height;
+
+                            // Resize the image to fit the max size
+                            if (width > height) {
+                                if (width > max_size) {
+                                    height *= max_size / width;
+                                    width = max_size;
+                                }
+                            } else {
+                                if (height > max_size) {
+                                    width *= max_size / height;
+                                    height = max_size;
+                                }
+                            }
+
+                            canvas.width = width;
+                            canvas.height = height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(imgElement, 0, 0, width, height);
+
+                            // Convert the resized image to a base64 string
+                            const dataUrl = canvas.toDataURL('image/jpeg');
+                            const imgElementForDisplay = document.getElementById('pasted-image');
+                            imgElementForDisplay.src = dataUrl;
+                            imgElementForDisplay.style.display = 'block';
+
+                            // Set the base64 image data to the hidden input field
+                            const inputElement = document.getElementById('pasted-image-data');
+                            inputElement.value = dataUrl;
+                        };
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+        });
+    </script>
 </body>
 </html>
