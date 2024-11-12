@@ -7,6 +7,10 @@ import time
 import os
 import random
 import socket
+import urllib3
+
+# Suppress only the single InsecureRequestWarning from urllib3 needed for this request.
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
 
@@ -22,11 +26,8 @@ def select_random_user_agent(file_path):
     except ValueError as ve:
         print(ve)
 
-def upload_image(image_file):
+def upload_image(base64_image):
     try:
-        base64_image = base64.b64encode(image_file.read()).decode('utf-8')
-        base64_image = "data:image/jpeg;base64," + base64_image
-
         data = {"image": base64_image}
         url = "https://pimeyes.com/api/upload/file"
         headers = {
@@ -34,7 +35,7 @@ def upload_image(image_file):
             "Accept": "application/json"
         }
         cookies = requests.cookies.RequestsCookieJar()
-        response = requests.post(url, headers=headers, cookies=cookies, json=data)
+        response = requests.post(url, headers=headers, cookies=cookies, json=data, verify=False)
         
         if response.status_code == 200:
             print("Image uploaded successfully.")
@@ -120,7 +121,7 @@ def get_results(url, search_hash, user_agent):
         'accept-encoding': 'gzip, deflate',
         'accept-language': 'en-US,en;q=0.9'
     }
-    response = requests.post(url, headers=headers, json=data)
+    response = requests.post(url, headers=headers, json=data, verify=False)
     if response.status_code == 200:
         print("Results obtained successfully.")
         return response.json()
@@ -166,26 +167,37 @@ def process_thumbnails(json_data):
     
     return processed_results
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route("/", methods=["GET", "POST"])
 def index():
-    if request.method == 'POST':
-        if 'file' not in request.files:
-            return jsonify({"error": "No file part"})
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({"error": "No selected file"})
-        
-        user_agent = select_random_user_agent("user-agents.txt")
-        if not user_agent:
-            return jsonify({"error": "Could not select a user agent."})
+    if request.method == "POST":
+        file = request.files.get("file")
+        pasted_image = request.form.get("pasted_image")
 
-        cookies, search_id = upload_image(file)
-        if not cookies:
-            return jsonify({"error": "Failed to upload image"})
+        if not file and not pasted_image:
+            return render_template("index.html", error="No selected file or pasted image")
 
+        # Handle the uploaded image file
+        if file:
+            base64_image = base64.b64encode(file.read()).decode("utf-8")
+            base64_image = f"data:image/jpeg;base64,{base64_image}"  # Add the prefix to ensure correct format
+
+        # Handle the pasted image from the clipboard
+        elif pasted_image:
+            base64_image = re.sub("^data:image/.+;base64,", "", pasted_image)
+            base64_image = f"data:image/jpeg;base64,{base64_image}"  # Ensure the prefix is included
+
+        # Upload the image to Pimeyes API
+        cookies, search_id = upload_image(base64_image)
+        if not cookies or not search_id:
+            return render_template("index.html", error="Failed to upload image")
+
+        # Process the cookies and proceed with the search
         cookies.set("payment_gateway_v3", "fastspring", domain="pimeyes.com")
         cookies.set("uploadPermissions", str(time.time() * 1000)[:13], domain="pimeyes.com")
         
+        user_agent = select_random_user_agent("known_sites.txt")
+
+        # Execute the search
         search_hash, search_collector_hash = exec_search(cookies, search_id, user_agent)
         if not (search_hash and search_collector_hash):
             return jsonify({"error": "Could not proceed with further API calls."})
@@ -194,6 +206,7 @@ def index():
         if not server_url:
             return jsonify({"error": "Failed to find server URL."})
 
+        # Get the results
         res = get_results(server_url, search_hash, user_agent)
         if res:
             results = process_thumbnails(res)
@@ -202,6 +215,7 @@ def index():
             return render_template('index.html', error="Failed to get results")
 
     return render_template('index.html')
+
 
 def find_available_port(start_port=5000, max_port=65535):
     for port in range(start_port, max_port + 1):
