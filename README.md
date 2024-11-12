@@ -16,6 +16,7 @@ Use:
 *IMAGES HAVE TO BE A JPG, possibly*
 
 Will still get rate limited to at least 10ish searches, if you really need to search for a face this bad; use a VPN like mullvad.
+Will also add that copy and paste is a hit or miss; some images may be WAY too big for a copy paste; best to save on your device if it doesn't work.
 
 # For a HTML page using flask
 
