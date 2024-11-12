@@ -149,11 +149,17 @@ def process_thumbnails(json_data):
             try:
                 ascii_data = json.loads(ascii_text)
                 page_url = ascii_data.get('url')
-                account_info = result.get('site')
+                site = result.get('site', '')
+                if not site:
+                    # Extract domain from page_url if site is not provided
+                    site = re.search(r'https?://([^/]+)', page_url).group(1) if page_url else 'Unknown site'
+                
                 if page_url:
                     processed_results.append({
                         "page_url": page_url,
-                        "account_info": account_info if account_info else "Not available"
+                        "account_info": result.get('accountInfo', 'Not available'),
+                        "thumbnail_url": thumbnail_url,
+                        "site": site
                     })
             except json.JSONDecodeError:
                 print("Failed to decode JSON from ASCII text.")
@@ -191,9 +197,9 @@ def index():
         res = get_results(server_url, search_hash, user_agent)
         if res:
             results = process_thumbnails(res)
-            return jsonify(results)
+            return render_template('results.html', results=results)
         else:
-            return jsonify({"error": "Failed to get results"})
+            return render_template('index.html', error="Failed to get results")
 
     return render_template('index.html')
 
