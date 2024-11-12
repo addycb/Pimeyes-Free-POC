@@ -15,6 +15,8 @@ Use:
 
 *IMAGES HAVE TO BE A JPG, possibly*
 
+Will still get rate limited to at least 10ish searches, if you really need to search for a face this bad; use a VPN like mullvad.
+
 # For a HTML page using flask
 
     python -m venv venv
