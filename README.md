@@ -4,7 +4,7 @@ Despite attempts to contact Pimeyes, no response was received, leading to the pu
 It enabling retrieval of unobfuscated web links from search results.  
   
 Use:
-1. Clone the directory "git clone [https://github.com/Nthompson096/Pimeyes-GUI.git](https://github.com/Nthompson096/Pimeyes-Free-GUI.git)"
+1. Clone the directory "git clone [https://github.com/Nthompson096/Pimeyes-Free-GUI.git](https://github.com/Nthompson096/Pimeyes-Free-GUI.git)"
 * OR Clone the main git repo directory "git clone [https://github.com/addycb/Pimeyes-Free-POC.git](https://github.com/addycb/Pimeyes-Free-POC.git)"
 3. Navigate into the directory "cd Pimeyes-Free-POC"
 4. Run the tool :: "python main-gui.py"
