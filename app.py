@@ -7,8 +7,15 @@ import time
 import os
 import random
 import socket
+import urllib3
+
+# Suppress only the single InsecureRequestWarning from urllib3 needed for this request.
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
+
+# Set the maximum upload size to 100MB
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100 MB
 
 def select_random_user_agent(file_path):
     try:
@@ -22,11 +29,8 @@ def select_random_user_agent(file_path):
     except ValueError as ve:
         print(ve)
 
-def upload_image(image_file):
+def upload_image(base64_image):
     try:
-        base64_image = base64.b64encode(image_file.read()).decode('utf-8')
-        base64_image = "data:image/jpeg;base64," + base64_image
-
         data = {"image": base64_image}
         url = "https://pimeyes.com/api/upload/file"
         headers = {
@@ -34,7 +38,7 @@ def upload_image(image_file):
             "Accept": "application/json"
         }
         cookies = requests.cookies.RequestsCookieJar()
-        response = requests.post(url, headers=headers, cookies=cookies, json=data)
+        response = requests.post(url, headers=headers, cookies=cookies, json=data, verify=False)
         
         if response.status_code == 200:
             print("Image uploaded successfully.")
@@ -120,7 +124,7 @@ def get_results(url, search_hash, user_agent):
         'accept-encoding': 'gzip, deflate',
         'accept-language': 'en-US,en;q=0.9'
     }
-    response = requests.post(url, headers=headers, json=data)
+    response = requests.post(url, headers=headers, json=data, verify=False)
     if response.status_code == 200:
         print("Results obtained successfully.")
         return response.json()
@@ -133,6 +137,71 @@ def hex_to_ascii(hex_string):
     hex_string = hex_string.lstrip('0x')
     bytes_data = bytes.fromhex(hex_string)
     return bytes_data.decode('ascii', errors='ignore')
+
+def classify_site(url):
+    if is_adult_site(url):
+        return "Adult Site"
+    elif is_social_e_commerce_site(url):
+        return "Social E-Commerce Site"
+    else:
+        return "Unclassified Site"
+
+def is_adult_site(url):
+    # Expanded list of known adult or borderline adult websites
+    adult_sites = [
+        'pornhub.com', 'xvideos.com', 'redtube.com', 'xhamster.com',
+        'curvage.org', 'onlyfans.com', 'fansly.com', 'cammodel.com', 'tube8.com', 
+        'bangbros.com', 'spankwire.com', 'youporn.com', 'metart.com', 
+        'javlibrary.com', 'brazzers.com', 'playboy.com', 'hustler.com', 
+        'chaturbate.com', 'cam4.com', 'myfreecams.com', 'livejasmin.com', 
+        'bongacams.com', 'camsoda.com', 'imlive.com', 'stripchat.com', 
+        'adultfriendfinder.com', 'fapdu.com', 'xxxbunker.com', 'cliphunter.com', 
+        'motherless.com', 'tnaflix.com', 'drtuber.com', 'pornmd.com', 
+        'xtube.com', 'xhamsterlive.com', 'camster.com', 'camwhores.tv', 
+        'private.com', 'naughtyamerica.com', '8muses.com',
+        'rule34.xxx', 'gelbooru.com', 'danbooru.donmai.us', 'e621.net',
+        'hentai-foundry.com', 'fakku.net', 'hentaihaven.org', 'hanime.tv',
+        'rule34hentai.net', 'pururin.to', 'hentai2read.com', 'doujins.com',
+        'fantasyfeeder.com', 'feedist.net', 'bbwchan.net', 'onlyfinder.com'
+    ]
+    
+    # Check if any of the adult site domains are in the page URL
+    for site in adult_sites:
+        if site in url:
+            return True
+    return False
+
+def is_social_e_commerce_site(url):
+    # List of known social e-commerce websites
+    social_e_commerce_sites = [
+        'pinterest.com', 'instagram.com', 'facebook.com', 'etsy.com', 
+        'poshmark.com', 'depop.com', 'mercari.com', 'letgo.com', 
+        'offerup.com', 'carousell.com', 'vinted.com', 'thredup.com', 
+        'tradesy.com', 'grailed.com', 'reverb.com', 'jet.com', 
+        'socialshopwave.com', 'shoploop.app', 'verishop.com', 'wanelo.com', 
+        'fancy.com', 'polyvore.com', 'liketoknow.it', 'shopstyle.com', 
+        'keep.com', 'lyst.com', 'mightybuy.co', 'yelpextensions.com', 
+        'shpock.com', 'rumgr.com', 'curtsyapp.com', '5miles.com', 
+        'swappa.com', 'wallapop.com', 'barnesandnoble.com', 'notonthehighstreet.com', 
+        'bigcartel.com', 'cratejoy.com', 'lazada.com', 'shopee.com',
+        'geekbuying.com', 'kikuu.com', 'carrefour.com', 'jumia.com', 
+        'tophatter.com', 'overstock.com', 'newegg.com', 'wayfair.com', 
+        'zalando.com', 'asos.com', 'fashionnova.com', 'boohoo.com', 
+        'shein.com', 'romwe.com', 'yesstyle.com', 'tictail.com', 
+        'dote.com', 'curtsy.com', 'shoptiques.com', 'beruby.com',
+        'indiebazaar.com', 'trendyol.com', 'flipkart.com', 'jabong.com',
+        'shopclues.com', 'ajio.com', 'myntra.com', 'snapdeal.com',
+        'kith.com', 'farfetch.com', 'mytheresa.com', 'mrporter.com',
+        'brownsfashion.com', 'matchesfashion.com', 'ssense.com', 'yoox.com',
+        'modaoperandi.com', 'vitrue.com', 'fancy.com', 'farfetch.com',
+        'poshmark.com', 'etsystatic.com', 'pinimg.com'
+    ]
+    
+    # Check if any of the social e-commerce site domains are in the page URL
+    for site in social_e_commerce_sites:
+        if site in url:
+            return True
+    return False
 
 def process_thumbnails(json_data):
     results = json_data.get('results', [])
@@ -149,37 +218,58 @@ def process_thumbnails(json_data):
             try:
                 ascii_data = json.loads(ascii_text)
                 page_url = ascii_data.get('url')
-                account_info = result.get('site')
+                site = result.get('site', '')
+                if not site and page_url:
+                    site = re.search(r'https?://([^/]+)', page_url).group(1) if page_url else 'Unknown site'
+                
+                is_adult = is_adult_site(page_url)  # Check if the page is an adult site
+                is_social_e_commerce = is_social_e_commerce_site(page_url)  # Check if the page is a social e-commerce site
+                
                 if page_url:
                     processed_results.append({
                         "page_url": page_url,
-                        "account_info": account_info if account_info else "Not available"
+                        "account_info": result.get('accountInfo', 'Not available'),
+                        "thumbnail_url": thumbnail_url,
+                        "site": site,
+                        "is_adult": is_adult,  # Add adult site info
+                        "is_social_e_commerce": is_social_e_commerce  # Add social e-commerce info
                     })
             except json.JSONDecodeError:
                 print("Failed to decode JSON from ASCII text.")
     
     return processed_results
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route("/", methods=["GET", "POST"])
 def index():
-    if request.method == 'POST':
-        if 'file' not in request.files:
-            return jsonify({"error": "No file part"})
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({"error": "No selected file"})
-        
-        user_agent = select_random_user_agent("user-agents.txt")
-        if not user_agent:
-            return jsonify({"error": "Could not select a user agent."})
+    if request.method == "POST":
+        file = request.files.get("file")
+        pasted_image = request.form.get("pasted_image")
 
-        cookies, search_id = upload_image(file)
-        if not cookies:
-            return jsonify({"error": "Failed to upload image"})
+        if not file and not pasted_image:
+            return render_template("index.html", error="No selected file or pasted image")
 
+        # Handle the uploaded image file
+        if file:
+            base64_image = base64.b64encode(file.read()).decode("utf-8")
+            base64_image = f"data:image/jpeg;base64,{base64_image}"  # Add the prefix to ensure correct format
+
+        # Handle the pasted image from the clipboard
+        elif pasted_image:
+            base64_image = re.sub("^data:image/.+;base64,", "", pasted_image)
+            base64_image = f"data:image/jpeg;base64,{base64_image}"  # Ensure the prefix is included
+
+        # Upload the image to Pimeyes API
+        cookies, search_id = upload_image(base64_image)
+        if not cookies or not search_id:
+            return render_template("index.html", error="Failed to upload image")
+
+        # Process the cookies and proceed with the search
         cookies.set("payment_gateway_v3", "fastspring", domain="pimeyes.com")
         cookies.set("uploadPermissions", str(time.time() * 1000)[:13], domain="pimeyes.com")
         
+        user_agent = select_random_user_agent("user-agents.txt")
+
+        # Execute the search
         search_hash, search_collector_hash = exec_search(cookies, search_id, user_agent)
         if not (search_hash and search_collector_hash):
             return jsonify({"error": "Could not proceed with further API calls."})
@@ -188,14 +278,16 @@ def index():
         if not server_url:
             return jsonify({"error": "Failed to find server URL."})
 
+        # Get the results
         res = get_results(server_url, search_hash, user_agent)
         if res:
             results = process_thumbnails(res)
-            return jsonify(results)
+            return render_template('results.html', results=results)
         else:
-            return jsonify({"error": "Failed to get results"})
+            return render_template('index.html', error="Failed to get results")
 
     return render_template('index.html')
+
 
 def find_available_port(start_port=5000, max_port=65535):
     for port in range(start_port, max_port + 1):

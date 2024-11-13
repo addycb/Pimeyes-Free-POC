@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Results</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .result-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .result-item {
+            width: 200px;
+            text-align: center;
+        }
+        .result-item img {
+            max-width: 100%;
+            height: auto;
+        }
+        .site-info {
+            font-weight: bold;
+            color: #4a4a4a;
+        }
+        .adult-warning {
+            background-color: #ffcccc;
+            color: red;
+            padding: 5px;
+            font-weight: bold;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .social-ecommerce-label {
+            background-color: #ccffcc;
+            color: green;
+            padding: 5px;
+            font-weight: bold;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .back-button {
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            text-align: center;
+        }
+        .back-button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <!-- Back to Search Button -->
+    <button class="back-button" onclick="window.location.href='/';">Back to Search</button>
+    
+    <h1>Search Results</h1>
+    <div class="result-container">
+        {% for result in results %}
+            <div class="result-item">
+                <a href="{{ result.page_url }}" target="_blank">
+                    <img src="{{ result.thumbnail_url }}" alt="Thumbnail">
+                </a>
+                <p class="site-info">Site: {{ result.site }}</p>
+                
+                {% if result.is_adult %}
+                    <div class="adult-warning">
+                        Warning: This site may contain adult content.
+                    </div>
+                {% endif %}
+                
+                {% if result.is_social_e_commerce %}
+                    <div class="social-ecommerce-label">
+                        Note: This is a social e-commerce site.
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+</body>
+</html>
