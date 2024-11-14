@@ -8,8 +8,7 @@ import os
 import random
 import socket
 import urllib3
-
-# Suppress only the single InsecureRequestWarning from urllib3 needed for this request.
+from tor_proxy import get_tor_session  # Import the Tor proxy handler
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
@@ -29,7 +28,7 @@ def select_random_user_agent(file_path):
     except ValueError as ve:
         print(ve)
 
-def upload_image(base64_image):
+def upload_image(base64_image, use_tor=False):
     try:
         data = {"image": base64_image}
         url = "https://pimeyes.com/api/upload/file"
@@ -37,8 +36,13 @@ def upload_image(base64_image):
             "Content-Type": "application/json",
             "Accept": "application/json"
         }
-        cookies = requests.cookies.RequestsCookieJar()
-        response = requests.post(url, headers=headers, cookies=cookies, json=data, verify=False)
+        
+        # If Tor proxy is enabled, use it
+        if use_tor:
+            session = get_tor_session()
+            response = session.post(url, headers=headers, json=data, verify=False)
+        else:
+            response = requests.post(url, headers=headers, json=data, verify=False)
         
         if response.status_code == 200:
             print("Image uploaded successfully.")
@@ -54,7 +58,18 @@ def upload_image(base64_image):
         print(f"Error uploading image: {e}")
         return None, None
 
-def exec_search(cookies, search_id, user_agent):
+def get_ip_address_through_tor():
+    try:
+        session = get_tor_session()
+        response = session.get("https://httpbin.org/ip", verify=False)
+        if response.status_code == 200:
+            return response.json().get("origin")
+        else:
+            return "Could not retrieve IP address"
+    except Exception as e:
+        return f"Error retrieving IP: {e}"
+
+def exec_search(cookies, search_id, user_agent, use_tor=False):
     headers = {
         'sec-ch-ua': '"Not;A=Brand";v="99", "Chromium";v="106"',
         'accept': 'application/json, text/plain, */*',
@@ -76,7 +91,13 @@ def exec_search(cookies, search_id, user_agent):
         "type": "PREMIUM_SEARCH",
         "g-recaptcha-response": None
     }
-    response = requests.post(url, headers=headers, json=data, cookies=cookies)
+    # If Tor proxy is enabled, use it
+    if use_tor:
+        session = get_tor_session()
+        response = session.post(url, headers=headers, json=data, cookies=cookies)
+    else:
+        response = requests.post(url, headers=headers, json=data, cookies=cookies)
+
     if response.status_code == 200:
         json_response = response.json()
         return json_response.get("searchHash"), json_response.get("searchCollectorHash")
@@ -85,6 +106,7 @@ def exec_search(cookies, search_id, user_agent):
         print(response.text)
         return None, None
 
+
 def extract_url_from_html(html_content):
     pattern = r'api-url="([^"]+)"'
     url = re.search(pattern, html_content)
@@ -92,9 +114,28 @@ def extract_url_from_html(html_content):
         return re.search(r'https://[^\"]+', url.group()).group()
     return None
 
-def find_results(search_hash, search_collector_hash, search_id, cookies):
+def get_ip_address_through_tor():
+    try:
+        session = get_tor_session()
+        response = session.get("https://httpbin.org/ip", verify=False)
+        if response.status_code == 200:
+            return response.json().get("origin")
+        else:
+            return "Could not retrieve IP address"
+    except Exception as e:
+        return f"Error retrieving IP: {e}"
+
+
+def find_results(search_hash, search_collector_hash, search_id, cookies, use_tor=False):
     url = f"https://pimeyes.com/en/results/{search_collector_hash}_{search_hash}?query={search_id}"
-    response = requests.get(url, cookies=cookies)
+    
+    # If Tor proxy is enabled, use it
+    if use_tor:
+        session = get_tor_session()
+        response = session.get(url, cookies=cookies)
+    else:
+        response = requests.get(url, cookies=cookies)
+    
     if response.status_code == 200:
         print("Found correct server.")
         return extract_url_from_html(response.text)
@@ -102,6 +143,7 @@ def find_results(search_hash, search_collector_hash, search_id, cookies):
         print(f"Failed to find results. Status code: {response.status_code}")
         print(response.text)
         return None
+
 
 def get_results(url, search_hash, user_agent):
     data = {
@@ -241,52 +283,53 @@ def process_thumbnails(json_data):
 
 @app.route("/", methods=["GET", "POST"])
 def index():
+    use_tor = request.form.get("use_tor") == "on"  # Check if user wants to use Tor
+    tor_ip = None
+    if use_tor:
+        tor_ip = get_ip_address_through_tor()  # Get the IP address used by Tor
+
     if request.method == "POST":
         file = request.files.get("file")
         pasted_image = request.form.get("pasted_image")
 
         if not file and not pasted_image:
-            return render_template("index.html", error="No selected file or pasted image")
+            return render_template("index.html", error="No selected file or pasted image", tor_ip=tor_ip)
 
-        # Handle the uploaded image file
         if file:
             base64_image = base64.b64encode(file.read()).decode("utf-8")
-            base64_image = f"data:image/jpeg;base64,{base64_image}"  # Add the prefix to ensure correct format
+            base64_image = f"data:image/jpeg;base64,{base64_image}"
 
-        # Handle the pasted image from the clipboard
         elif pasted_image:
             base64_image = re.sub("^data:image/.+;base64,", "", pasted_image)
-            base64_image = f"data:image/jpeg;base64,{base64_image}"  # Ensure the prefix is included
+            base64_image = f"data:image/jpeg;base64,{base64_image}"
 
-        # Upload the image to Pimeyes API
-        cookies, search_id = upload_image(base64_image)
+        cookies, search_id = upload_image(base64_image, use_tor)
         if not cookies or not search_id:
-            return render_template("index.html", error="Failed to upload image")
+            return render_template("index.html", error="Failed to upload image", tor_ip=tor_ip)
 
-        # Process the cookies and proceed with the search
         cookies.set("payment_gateway_v3", "fastspring", domain="pimeyes.com")
         cookies.set("uploadPermissions", str(time.time() * 1000)[:13], domain="pimeyes.com")
         
         user_agent = select_random_user_agent("user-agents.txt")
 
-        # Execute the search
-        search_hash, search_collector_hash = exec_search(cookies, search_id, user_agent)
+        search_hash, search_collector_hash = exec_search(cookies, search_id, user_agent, use_tor)
         if not (search_hash and search_collector_hash):
-            return jsonify({"error": "Could not proceed with further API calls."})
+            return jsonify({"error": "Could not proceed with further API calls."}), 404
         
-        server_url = find_results(search_hash, search_collector_hash, search_id, cookies)
+        server_url = find_results(search_hash, search_collector_hash, search_id, cookies, use_tor)
         if not server_url:
-            return jsonify({"error": "Failed to find server URL."})
+            return jsonify({"error": "Failed to find server URL."}), 404
 
-        # Get the results
         res = get_results(server_url, search_hash, user_agent)
         if res:
             results = process_thumbnails(res)
-            return render_template('results.html', results=results)
+            if not results:
+                return render_template('404.html', error="No matches found."), 404
+            return render_template('results.html', results=results, tor_ip=tor_ip)
         else:
-            return render_template('index.html', error="Failed to get results")
+            return render_template('index.html', error="Failed to get results", tor_ip=tor_ip)
 
-    return render_template('index.html')
+    return render_template('index.html', tor_ip=tor_ip)
 
 
 def find_available_port(start_port=5000, max_port=65535):
