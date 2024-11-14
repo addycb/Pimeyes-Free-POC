@@ -49,6 +49,12 @@
             margin-top: 10px;
             display: none; /* Hide by default */
         }
+        .ip-info {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
@@ -59,12 +65,23 @@
     <form id="upload-form" action="/" method="post" enctype="multipart/form-data">
         <input type="file" name="file" accept="image/*">
         <input type="hidden" id="pasted-image-data" name="pasted_image">
+        
+        <!-- Add the checkbox for the "Use Tor Proxy" option -->
+        <label for="use_tor">Use Tor Proxy:</label>
+        <input type="checkbox" id="use_tor" name="use_tor">
+        
         <button type="submit">Search</button>
     </form>
     <div id="paste-area">
         <p>Or drag an image here, or paste an image from your clipboard</p>
         <img id="pasted-image" src="" alt="Pasted image will appear here">
     </div>
+
+    <!-- Display the IP address -->
+<!--     <div class="ip-info" id="ip-info">
+        <p>Current IP Address: <span id="ip-address">Loading...</span></p>
+    </div> -->
+
     <script>
         const pasteArea = document.getElementById('paste-area');
         const pastedImageElement = document.getElementById('pasted-image');
@@ -112,6 +129,21 @@
                 }
             }
         });
+
+        // // Fetch the IP address to verify Tor usage
+        // async function fetchIpAddress() {
+        //     try {
+        //         const response = await fetch('https://api.ipify.org?format=json');
+        //         const data = await response.json();
+        //         document.getElementById('ip-address').textContent = data.ip;
+        //     } catch (error) {
+        //         console.error("Error fetching IP address:", error);
+        //         document.getElementById('ip-address').textContent = "Unable to fetch IP.";
+        //     }
+        // }
+
+        // Call the function on page load
+        fetchIpAddress();
     </script>
 </body>
 </html>
