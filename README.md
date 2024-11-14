@@ -42,7 +42,7 @@ All in the flask application.
 
 </br>
 
-    pip install flask request
+    pip install -r requirements.txt
 
 Result: You will receive a collection of unobfuscated results, namely links to where that face was found.
 
