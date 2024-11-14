@@ -23,6 +23,14 @@ For images that are not found within it's database, it will throw up this error 
 
 That's normal; it means it can't find anything on it's database.
 
+# Functions added include:
+
+* Weather the site is from an adult site or market site
+* Ability to search VIA TOR SOCKKS.
+* Drag and drop functions, along with paste from clipboard
+
+All in the flask application.
+
 
 # For a HTML page using flask
 
