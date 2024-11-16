@@ -9,11 +9,22 @@ import random
 import socket
 import urllib3
 import whois
+import shelve
 from tor_proxy import get_tor_session  # Import the Tor proxy handler
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
 
+
+# Set the allowed image file extensions
+ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'bmp', 'tiff'}
+
+# Set the maximum file size (1.5 MB)
+MAX_FILE_SIZE = 1.5 * 1024 * 1024  # 1.5 MB
+
+# Check if the file is allowed
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 BLOCKLIST_CACHE_FILE = "blocklist_cache.txt"
 CACHE_EXPIRY_TIME = 3600  # Cache expiry time in seconds (1 hour)
@@ -303,11 +314,22 @@ def is_social_e_commerce_site(url):
     ]
     
     # Check if any of the social e-commerce site domains are in the page URL
-def resolve_domain_whois(domain):
+def resolve_domain_whois(domain, cache_file='whois_cache.db', cache_expiry=86400):  # Cache expiry time in seconds (e.g., 1 day)
     try:
-        # Use the whois library to get domain information
-        domain_info = whois.whois(domain)
-        return domain_info
+        with shelve.open(cache_file) as cache:
+            if domain in cache:
+                cached_data, timestamp = cache[domain]
+                if time.time() - timestamp < cache_expiry:
+                    print(f"Cache hit for domain: {domain}")
+                    return cached_data
+                else:
+                    print(f"Cache expired for domain: {domain}. Performing WHOIS lookup.")
+            else:
+                print(f"Cache miss for domain: {domain}. Performing WHOIS lookup.")
+            
+            domain_info = whois.whois(domain)
+            cache[domain] = (domain_info, time.time())
+            return domain_info
     except Exception as e:
         print(f"Error resolving domain: {e}")
         return None
