@@ -31,6 +31,12 @@
             font-weight: bold;
             color: #4a4a4a;
         }
+        .ip-info {
+            font-style: italic;
+            font-size: 0.9em;
+            color: #555;
+            margin-top: 5px;
+        }
         .adult-warning {
             background-color: #ffcccc;
             color: red;
@@ -62,6 +68,11 @@
     </style>
 </head>
 <body>
+    <!-- Display Tor IP if available -->
+    {% if tor_ip %}
+        <p>Using Tor IP: {{ tor_ip }}</p>
+    {% endif %}
+    
     <!-- Back to Search Button -->
     <button class="back-button" onclick="window.location.href='/';">Back to Search</button>
     
@@ -73,6 +84,11 @@
                     <img src="{{ result.thumbnail_url }}" alt="Thumbnail">
                 </a>
                 <p class="site-info">Site: {{ result.site }}</p>
+
+                <!-- Display the IP address associated with the result -->
+                {% if result.ip_address %}
+                    <p class="ip-info">IP: {{ result.ip_address }}</p>
+                {% endif %}
                 
                 {% if result.is_adult %}
                     <div class="adult-warning">

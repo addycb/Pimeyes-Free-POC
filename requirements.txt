@@ -1,0 +1,5 @@
+Flask==2.2.5
+requests==2.31.0
+urllib3==1.26.14
+PySocks==1.7.1
+stem==1.8.0

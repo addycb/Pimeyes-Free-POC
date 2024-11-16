@@ -8,11 +8,54 @@ import os
 import random
 import socket
 import urllib3
-
-# Suppress only the single InsecureRequestWarning from urllib3 needed for this request.
+import whois
+from tor_proxy import get_tor_session  # Import the Tor proxy handler
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
+
+
+BLOCKLIST_CACHE_FILE = "blocklist_cache.txt"
+CACHE_EXPIRY_TIME = 3600  # Cache expiry time in seconds (1 hour)
+
+# Global variable to hold the blocklist
+blocked_domains = set()
+
+def load_blocklist(url):
+    current_time = time.time()
+    print(f"Checking if cache is valid...")  # Debug log
+    # Check if cached blocklist exists and is not expired
+    if os.path.exists(BLOCKLIST_CACHE_FILE):
+        cache_age = current_time - os.path.getmtime(BLOCKLIST_CACHE_FILE)
+        print(f"Cache age: {cache_age} seconds")  # Debug log
+        if cache_age < CACHE_EXPIRY_TIME:
+            print("Using cached blocklist.")  # Debug log
+            with open(BLOCKLIST_CACHE_FILE, 'r') as file:
+                return set(file.read().splitlines())
+    
+    print("Fetching blocklist from URL...")  # Debug log
+    # Fetch the blocklist from the URL if the cache is expired or doesn't exist
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            # Decode byte strings to normal strings and collect them into a set
+            blocklist = set(line.decode('utf-8').strip() for line in response.iter_lines())
+            print(f"Fetched {len(blocklist)} domains.")  # Debug log
+            # Save the blocklist to the cache file
+            with open(BLOCKLIST_CACHE_FILE, 'w') as cache_file:
+                cache_file.write("\n".join(blocklist))
+            print(f"Blocklist cached to {BLOCKLIST_CACHE_FILE}.")  # Debug log
+            return blocklist
+        else:
+            print(f"Failed to fetch blocklist. Status code: {response.status_code}")
+            return set()
+    except requests.RequestException as e:
+        print(f"Error fetching blocklist: {e}")
+        return set()
+
+# Load the blocklist at startup (and cache it for future use)
+blocklist_url = "https://raw.githubusercontent.com/Bon-Appetit/porn-domains/refs/heads/master/block.txt"
+blocked_domains = load_blocklist(blocklist_url)
 
 # Set the maximum upload size to 100MB
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100 MB
@@ -29,7 +72,7 @@ def select_random_user_agent(file_path):
     except ValueError as ve:
         print(ve)
 
-def upload_image(base64_image):
+def upload_image(base64_image, use_tor=False):
     try:
         data = {"image": base64_image}
         url = "https://pimeyes.com/api/upload/file"
@@ -37,8 +80,13 @@ def upload_image(base64_image):
             "Content-Type": "application/json",
             "Accept": "application/json"
         }
-        cookies = requests.cookies.RequestsCookieJar()
-        response = requests.post(url, headers=headers, cookies=cookies, json=data, verify=False)
+        
+        # If Tor proxy is enabled, use it
+        if use_tor:
+            session = get_tor_session()
+            response = session.post(url, headers=headers, json=data, verify=False)
+        else:
+            response = requests.post(url, headers=headers, json=data, verify=False)
         
         if response.status_code == 200:
             print("Image uploaded successfully.")
@@ -54,7 +102,18 @@ def upload_image(base64_image):
         print(f"Error uploading image: {e}")
         return None, None
 
-def exec_search(cookies, search_id, user_agent):
+def get_ip_address_through_tor():
+    try:
+        session = get_tor_session()
+        response = session.get("https://httpbin.org/ip", verify=False)
+        if response.status_code == 200:
+            return response.json().get("origin")
+        else:
+            return "Could not retrieve IP address"
+    except Exception as e:
+        return f"Error retrieving IP: {e}"
+
+def exec_search(cookies, search_id, user_agent, use_tor=False):
     headers = {
         'sec-ch-ua': '"Not;A=Brand";v="99", "Chromium";v="106"',
         'accept': 'application/json, text/plain, */*',
@@ -76,7 +135,13 @@ def exec_search(cookies, search_id, user_agent):
         "type": "PREMIUM_SEARCH",
         "g-recaptcha-response": None
     }
-    response = requests.post(url, headers=headers, json=data, cookies=cookies)
+    # If Tor proxy is enabled, use it
+    if use_tor:
+        session = get_tor_session()
+        response = session.post(url, headers=headers, json=data, cookies=cookies)
+    else:
+        response = requests.post(url, headers=headers, json=data, cookies=cookies)
+
     if response.status_code == 200:
         json_response = response.json()
         return json_response.get("searchHash"), json_response.get("searchCollectorHash")
@@ -85,6 +150,7 @@ def exec_search(cookies, search_id, user_agent):
         print(response.text)
         return None, None
 
+
 def extract_url_from_html(html_content):
     pattern = r'api-url="([^"]+)"'
     url = re.search(pattern, html_content)
@@ -92,9 +158,28 @@ def extract_url_from_html(html_content):
         return re.search(r'https://[^\"]+', url.group()).group()
     return None
 
-def find_results(search_hash, search_collector_hash, search_id, cookies):
+def get_ip_address_through_tor():
+    try:
+        session = get_tor_session()
+        response = session.get("https://httpbin.org/ip", verify=False)
+        if response.status_code == 200:
+            return response.json().get("origin")
+        else:
+            return "Could not retrieve IP address"
+    except Exception as e:
+        return f"Error retrieving IP: {e}"
+
+
+def find_results(search_hash, search_collector_hash, search_id, cookies, use_tor=False):
     url = f"https://pimeyes.com/en/results/{search_collector_hash}_{search_hash}?query={search_id}"
-    response = requests.get(url, cookies=cookies)
+    
+    # If Tor proxy is enabled, use it
+    if use_tor:
+        session = get_tor_session()
+        response = session.get(url, cookies=cookies)
+    else:
+        response = requests.get(url, cookies=cookies)
+    
     if response.status_code == 200:
         print("Found correct server.")
         return extract_url_from_html(response.text)
@@ -102,6 +187,7 @@ def find_results(search_hash, search_collector_hash, search_id, cookies):
         print(f"Failed to find results. Status code: {response.status_code}")
         print(response.text)
         return None
+
 
 def get_results(url, search_hash, user_agent):
     data = {
@@ -138,37 +224,56 @@ def hex_to_ascii(hex_string):
     bytes_data = bytes.fromhex(hex_string)
     return bytes_data.decode('ascii', errors='ignore')
 
+def normalize_domain(domain):
+    """
+    Normalize the domain name to ensure it matches the blocklist format.
+    This includes removing common subdomains like 'www.', 'pic.', 'static.' and converting to lowercase.
+    """
+    domain = domain.lower()
+    
+    # Remove common subdomains if they exist
+    subdomains_to_remove = ['www.', 'pic.', 'static.', 'm.', 'cdn.', 'api.','public.']  # Add more subdomains as needed
+    for subdomain in subdomains_to_remove:
+        if domain.startswith(subdomain):
+            domain = domain[len(subdomain):]
+            break  # Only remove the first matching subdomain
+    
+    return domain
+
 def classify_site(url):
+    domain = re.search(r'https?://([^/]+)', url).group(1)
+    normalized_domain = normalize_domain(domain)
+
+    print(f"Checking domain: {normalized_domain}")  # Debug log
+    
+    # Check if the site is an adult site
     if is_adult_site(url):
         return "Adult Site"
-    elif is_social_e_commerce_site(url):
+    
+    # Check if the domain is in the blocklist
+    if domain in blocked_domains:
+        print(f"Domain {normalized_domain} is in blocklist.")  # Debug log
+        return "Adult Site"
+    
+    # Replace ICANN-based classification with WHOIS-based classification
+    elif classify_site_with_whois(domain) == "Social E-Commerce Site":
         return "Social E-Commerce Site"
-    else:
-        return "Unclassified Site"
+    
+    return "Unclassified Site"
+
+
 
 def is_adult_site(url):
-    # Expanded list of known adult or borderline adult websites
-    adult_sites = [
-        'pornhub.com', 'xvideos.com', 'redtube.com', 'xhamster.com',
-        'curvage.org', 'onlyfans.com', 'fansly.com', 'cammodel.com', 'tube8.com', 
-        'bangbros.com', 'spankwire.com', 'youporn.com', 'metart.com', 
-        'javlibrary.com', 'brazzers.com', 'playboy.com', 'hustler.com', 
-        'chaturbate.com', 'cam4.com', 'myfreecams.com', 'livejasmin.com', 
-        'bongacams.com', 'camsoda.com', 'imlive.com', 'stripchat.com', 
-        'adultfriendfinder.com', 'fapdu.com', 'xxxbunker.com', 'cliphunter.com', 
-        'motherless.com', 'tnaflix.com', 'drtuber.com', 'pornmd.com', 
-        'xtube.com', 'xhamsterlive.com', 'camster.com', 'camwhores.tv', 
-        'private.com', 'naughtyamerica.com', '8muses.com',
-        'rule34.xxx', 'gelbooru.com', 'danbooru.donmai.us', 'e621.net',
-        'hentai-foundry.com', 'fakku.net', 'hentaihaven.org', 'hanime.tv',
-        'rule34hentai.net', 'pururin.to', 'hentai2read.com', 'doujins.com',
-        'fantasyfeeder.com', 'feedist.net', 'bbwchan.net', 'onlyfinder.com'
-    ]
+    # Extract the domain from the URL
+    domain = re.search(r'https?://([^/]+)', url)
     
-    # Check if any of the adult site domains are in the page URL
-    for site in adult_sites:
-        if site in url:
+    if domain:
+        domain = domain.group(1)
+        
+        # Check if the domain is in the blocklist
+        if domain in blocked_domains:
             return True
+    
     return False
 
 def is_social_e_commerce_site(url):
@@ -194,14 +299,57 @@ def is_social_e_commerce_site(url):
         'kith.com', 'farfetch.com', 'mytheresa.com', 'mrporter.com',
         'brownsfashion.com', 'matchesfashion.com', 'ssense.com', 'yoox.com',
         'modaoperandi.com', 'vitrue.com', 'fancy.com', 'farfetch.com',
-        'poshmark.com', 'etsystatic.com', 'pinimg.com'
+        'poshmark.com', 'pinimg.com'
     ]
     
     # Check if any of the social e-commerce site domains are in the page URL
-    for site in social_e_commerce_sites:
-        if site in url:
-            return True
-    return False
+def resolve_domain_whois(domain):
+    try:
+        # Use the whois library to get domain information
+        domain_info = whois.whois(domain)
+        return domain_info
+    except Exception as e:
+        print(f"Error resolving domain: {e}")
+        return None
+
+def classify_site_with_whois(domain):
+    # If the domain is a subdomain of 'etsystatic.com' or 'etsy.com', convert it to 'etsy.com'
+    if "etsystatic.com" in domain:
+        return "etsy.com"
+    
+    # If it's a subdomain of 'etsy.com', convert it to 'etsy.com'
+    if domain.endswith("etsy.com"):
+        return "etsy.com"
+    
+    # Resolve WHOIS information for the domain (if it's not a subdomain)
+    if "." in domain:
+        # Extract the base domain (e.g., 'i.etsystatic.com' -> 'etsy.com')
+        base_domain = domain.split('.')[-2] + '.' + domain.split('.')[-1]
+        if base_domain == "etsy.com":
+            return "etsy.com"
+    
+    domain_info = resolve_domain_whois(domain)
+    
+    if not domain_info:
+        return "Unclassified Site"
+    
+    # Check if the domain matches known social e-commerce sites
+    if is_social_e_commerce_site(domain):
+        return "Social E-Commerce Site"
+    
+    return "Unclassified Site"
+
+
+
+# Example usage
+domain = "etsystatic.com (etsy)"
+classification = classify_site_with_whois(domain)
+print(f"Domain {domain} is classified as: {classification}")
+
+domain = "etsy.com"
+classification = classify_site_with_whois(domain)
+print(f"Domain {domain} is classified as: {classification}")
+
 
 def process_thumbnails(json_data):
     results = json_data.get('results', [])
@@ -219,11 +367,18 @@ def process_thumbnails(json_data):
                 ascii_data = json.loads(ascii_text)
                 page_url = ascii_data.get('url')
                 site = result.get('site', '')
+                
+                # Resolve the domain from the page URL if needed
                 if not site and page_url:
                     site = re.search(r'https?://([^/]+)', page_url).group(1) if page_url else 'Unknown site'
                 
-                is_adult = is_adult_site(page_url)  # Check if the page is an adult site
-                is_social_e_commerce = is_social_e_commerce_site(page_url)  # Check if the page is a social e-commerce site
+                # Resolve domain classification
+                domain = re.search(r'https?://([^/]+)', page_url).group(1) if page_url else ''
+                resolved_domain = classify_site_with_whois(domain)  # Resolve the domain using WHOIS
+                
+                # Check if the site is adult or social e-commerce
+                is_adult = is_adult_site(page_url)
+                is_social_e_commerce = is_social_e_commerce_site(page_url)
                 
                 if page_url:
                     processed_results.append({
@@ -231,8 +386,9 @@ def process_thumbnails(json_data):
                         "account_info": result.get('accountInfo', 'Not available'),
                         "thumbnail_url": thumbnail_url,
                         "site": site,
-                        "is_adult": is_adult,  # Add adult site info
-                        "is_social_e_commerce": is_social_e_commerce  # Add social e-commerce info
+                        "resolved_domain": resolved_domain,  # Add resolved domain here
+                        "is_adult": is_adult,
+                        "is_social_e_commerce": is_social_e_commerce
                     })
             except json.JSONDecodeError:
                 print("Failed to decode JSON from ASCII text.")
@@ -241,52 +397,53 @@ def process_thumbnails(json_data):
 
 @app.route("/", methods=["GET", "POST"])
 def index():
+    use_tor = request.form.get("use_tor") == "on"  # Check if user wants to use Tor
+    tor_ip = None
+    if use_tor:
+        tor_ip = get_ip_address_through_tor()  # Get the IP address used by Tor
+
     if request.method == "POST":
         file = request.files.get("file")
         pasted_image = request.form.get("pasted_image")
 
         if not file and not pasted_image:
-            return render_template("index.html", error="No selected file or pasted image")
+            return render_template("index.html", error="No selected file or pasted image", tor_ip=tor_ip)
 
-        # Handle the uploaded image file
         if file:
             base64_image = base64.b64encode(file.read()).decode("utf-8")
-            base64_image = f"data:image/jpeg;base64,{base64_image}"  # Add the prefix to ensure correct format
+            base64_image = f"data:image/jpeg;base64,{base64_image}"
 
-        # Handle the pasted image from the clipboard
         elif pasted_image:
             base64_image = re.sub("^data:image/.+;base64,", "", pasted_image)
-            base64_image = f"data:image/jpeg;base64,{base64_image}"  # Ensure the prefix is included
+            base64_image = f"data:image/jpeg;base64,{base64_image}"
 
-        # Upload the image to Pimeyes API
-        cookies, search_id = upload_image(base64_image)
+        cookies, search_id = upload_image(base64_image, use_tor)
         if not cookies or not search_id:
-            return render_template("index.html", error="Failed to upload image")
+            return render_template("index.html", error="Failed to upload image", tor_ip=tor_ip)
 
-        # Process the cookies and proceed with the search
         cookies.set("payment_gateway_v3", "fastspring", domain="pimeyes.com")
         cookies.set("uploadPermissions", str(time.time() * 1000)[:13], domain="pimeyes.com")
         
         user_agent = select_random_user_agent("user-agents.txt")
 
-        # Execute the search
-        search_hash, search_collector_hash = exec_search(cookies, search_id, user_agent)
+        search_hash, search_collector_hash = exec_search(cookies, search_id, user_agent, use_tor)
         if not (search_hash and search_collector_hash):
-            return jsonify({"error": "Could not proceed with further API calls."})
+            return jsonify({"error": "Could not proceed with further API calls."}), 404
         
-        server_url = find_results(search_hash, search_collector_hash, search_id, cookies)
+        server_url = find_results(search_hash, search_collector_hash, search_id, cookies, use_tor)
         if not server_url:
-            return jsonify({"error": "Failed to find server URL."})
+            return jsonify({"error": "Failed to find server URL."}), 404
 
-        # Get the results
         res = get_results(server_url, search_hash, user_agent)
         if res:
             results = process_thumbnails(res)
-            return render_template('results.html', results=results)
+            if not results:
+                return render_template('404.html', error="No matches found."), 404
+            return render_template('results.html', results=results, tor_ip=tor_ip)
         else:
-            return render_template('index.html', error="Failed to get results")
+            return render_template('index.html', error="Failed to get results", tor_ip=tor_ip)
 
-    return render_template('index.html')
+    return render_template('index.html', tor_ip=tor_ip)
 
 
 def find_available_port(start_port=5000, max_port=65535):
@@ -300,6 +457,9 @@ def find_available_port(start_port=5000, max_port=65535):
     return None
 
 if __name__ == '__main__':
+    # Load the blocklist when the app starts
+    blocked_domains = load_blocklist(blocklist_url)
+
     port = find_available_port()
     if port:
         print(f"Starting server on port {port}")
