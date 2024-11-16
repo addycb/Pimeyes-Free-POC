@@ -8,10 +8,54 @@ import os
 import random
 import socket
 import urllib3
+import whois
 from tor_proxy import get_tor_session  # Import the Tor proxy handler
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
+
+
+BLOCKLIST_CACHE_FILE = "blocklist_cache.txt"
+CACHE_EXPIRY_TIME = 3600  # Cache expiry time in seconds (1 hour)
+
+# Global variable to hold the blocklist
+blocked_domains = set()
+
+def load_blocklist(url):
+    current_time = time.time()
+    print(f"Checking if cache is valid...")  # Debug log
+    # Check if cached blocklist exists and is not expired
+    if os.path.exists(BLOCKLIST_CACHE_FILE):
+        cache_age = current_time - os.path.getmtime(BLOCKLIST_CACHE_FILE)
+        print(f"Cache age: {cache_age} seconds")  # Debug log
+        if cache_age < CACHE_EXPIRY_TIME:
+            print("Using cached blocklist.")  # Debug log
+            with open(BLOCKLIST_CACHE_FILE, 'r') as file:
+                return set(file.read().splitlines())
+    
+    print("Fetching blocklist from URL...")  # Debug log
+    # Fetch the blocklist from the URL if the cache is expired or doesn't exist
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            # Decode byte strings to normal strings and collect them into a set
+            blocklist = set(line.decode('utf-8').strip() for line in response.iter_lines())
+            print(f"Fetched {len(blocklist)} domains.")  # Debug log
+            # Save the blocklist to the cache file
+            with open(BLOCKLIST_CACHE_FILE, 'w') as cache_file:
+                cache_file.write("\n".join(blocklist))
+            print(f"Blocklist cached to {BLOCKLIST_CACHE_FILE}.")  # Debug log
+            return blocklist
+        else:
+            print(f"Failed to fetch blocklist. Status code: {response.status_code}")
+            return set()
+    except requests.RequestException as e:
+        print(f"Error fetching blocklist: {e}")
+        return set()
+
+# Load the blocklist at startup (and cache it for future use)
+blocklist_url = "https://raw.githubusercontent.com/Bon-Appetit/porn-domains/refs/heads/master/block.txt"
+blocked_domains = load_blocklist(blocklist_url)
 
 # Set the maximum upload size to 100MB
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100 MB
@@ -180,37 +224,56 @@ def hex_to_ascii(hex_string):
     bytes_data = bytes.fromhex(hex_string)
     return bytes_data.decode('ascii', errors='ignore')
 
+def normalize_domain(domain):
+    """
+    Normalize the domain name to ensure it matches the blocklist format.
+    This includes removing common subdomains like 'www.', 'pic.', 'static.' and converting to lowercase.
+    """
+    domain = domain.lower()
+    
+    # Remove common subdomains if they exist
+    subdomains_to_remove = ['www.', 'pic.', 'static.', 'm.', 'cdn.', 'api.','public.']  # Add more subdomains as needed
+    for subdomain in subdomains_to_remove:
+        if domain.startswith(subdomain):
+            domain = domain[len(subdomain):]
+            break  # Only remove the first matching subdomain
+    
+    return domain
+
 def classify_site(url):
+    domain = re.search(r'https?://([^/]+)', url).group(1)
+    normalized_domain = normalize_domain(domain)
+
+    print(f"Checking domain: {normalized_domain}")  # Debug log
+    
+    # Check if the site is an adult site
     if is_adult_site(url):
         return "Adult Site"
-    elif is_social_e_commerce_site(url):
+    
+    # Check if the domain is in the blocklist
+    if domain in blocked_domains:
+        print(f"Domain {normalized_domain} is in blocklist.")  # Debug log
+        return "Adult Site"
+    
+    # Replace ICANN-based classification with WHOIS-based classification
+    elif classify_site_with_whois(domain) == "Social E-Commerce Site":
         return "Social E-Commerce Site"
-    else:
-        return "Unclassified Site"
+    
+    return "Unclassified Site"
+
+
 
 def is_adult_site(url):
-    # Expanded list of known adult or borderline adult websites
-    adult_sites = [
-        'pornhub.com', 'xvideos.com', 'redtube.com', 'xhamster.com',
-        'curvage.org', 'onlyfans.com', 'fansly.com', 'cammodel.com', 'tube8.com', 
-        'bangbros.com', 'spankwire.com', 'youporn.com', 'metart.com', 
-        'javlibrary.com', 'brazzers.com', 'playboy.com', 'hustler.com', 
-        'chaturbate.com', 'cam4.com', 'myfreecams.com', 'livejasmin.com', 
-        'bongacams.com', 'camsoda.com', 'imlive.com', 'stripchat.com', 
-        'adultfriendfinder.com', 'fapdu.com', 'xxxbunker.com', 'cliphunter.com', 
-        'motherless.com', 'tnaflix.com', 'drtuber.com', 'pornmd.com', 
-        'xtube.com', 'xhamsterlive.com', 'camster.com', 'camwhores.tv', 
-        'private.com', 'naughtyamerica.com', '8muses.com',
-        'rule34.xxx', 'gelbooru.com', 'danbooru.donmai.us', 'e621.net',
-        'hentai-foundry.com', 'fakku.net', 'hentaihaven.org', 'hanime.tv',
-        'rule34hentai.net', 'pururin.to', 'hentai2read.com', 'doujins.com',
-        'fantasyfeeder.com', 'feedist.net', 'bbwchan.net', 'onlyfinder.com'
-    ]
+    # Extract the domain from the URL
+    domain = re.search(r'https?://([^/]+)', url)
     
-    # Check if any of the adult site domains are in the page URL
-    for site in adult_sites:
-        if site in url:
+    if domain:
+        domain = domain.group(1)
+        
+        # Check if the domain is in the blocklist
+        if domain in blocked_domains:
             return True
+    
     return False
 
 def is_social_e_commerce_site(url):
@@ -236,14 +299,57 @@ def is_social_e_commerce_site(url):
         'kith.com', 'farfetch.com', 'mytheresa.com', 'mrporter.com',
         'brownsfashion.com', 'matchesfashion.com', 'ssense.com', 'yoox.com',
         'modaoperandi.com', 'vitrue.com', 'fancy.com', 'farfetch.com',
-        'poshmark.com', 'etsystatic.com', 'pinimg.com'
+        'poshmark.com', 'pinimg.com'
     ]
     
     # Check if any of the social e-commerce site domains are in the page URL
-    for site in social_e_commerce_sites:
-        if site in url:
-            return True
-    return False
+def resolve_domain_whois(domain):
+    try:
+        # Use the whois library to get domain information
+        domain_info = whois.whois(domain)
+        return domain_info
+    except Exception as e:
+        print(f"Error resolving domain: {e}")
+        return None
+
+def classify_site_with_whois(domain):
+    # If the domain is a subdomain of 'etsystatic.com' or 'etsy.com', convert it to 'etsy.com'
+    if "etsystatic.com" in domain:
+        return "etsy.com"
+    
+    # If it's a subdomain of 'etsy.com', convert it to 'etsy.com'
+    if domain.endswith("etsy.com"):
+        return "etsy.com"
+    
+    # Resolve WHOIS information for the domain (if it's not a subdomain)
+    if "." in domain:
+        # Extract the base domain (e.g., 'i.etsystatic.com' -> 'etsy.com')
+        base_domain = domain.split('.')[-2] + '.' + domain.split('.')[-1]
+        if base_domain == "etsy.com":
+            return "etsy.com"
+    
+    domain_info = resolve_domain_whois(domain)
+    
+    if not domain_info:
+        return "Unclassified Site"
+    
+    # Check if the domain matches known social e-commerce sites
+    if is_social_e_commerce_site(domain):
+        return "Social E-Commerce Site"
+    
+    return "Unclassified Site"
+
+
+
+# Example usage
+domain = "etsystatic.com (etsy)"
+classification = classify_site_with_whois(domain)
+print(f"Domain {domain} is classified as: {classification}")
+
+domain = "etsy.com"
+classification = classify_site_with_whois(domain)
+print(f"Domain {domain} is classified as: {classification}")
+
 
 def process_thumbnails(json_data):
     results = json_data.get('results', [])
@@ -261,11 +367,18 @@ def process_thumbnails(json_data):
                 ascii_data = json.loads(ascii_text)
                 page_url = ascii_data.get('url')
                 site = result.get('site', '')
+                
+                # Resolve the domain from the page URL if needed
                 if not site and page_url:
                     site = re.search(r'https?://([^/]+)', page_url).group(1) if page_url else 'Unknown site'
                 
-                is_adult = is_adult_site(page_url)  # Check if the page is an adult site
-                is_social_e_commerce = is_social_e_commerce_site(page_url)  # Check if the page is a social e-commerce site
+                # Resolve domain classification
+                domain = re.search(r'https?://([^/]+)', page_url).group(1) if page_url else ''
+                resolved_domain = classify_site_with_whois(domain)  # Resolve the domain using WHOIS
+                
+                # Check if the site is adult or social e-commerce
+                is_adult = is_adult_site(page_url)
+                is_social_e_commerce = is_social_e_commerce_site(page_url)
                 
                 if page_url:
                     processed_results.append({
@@ -273,8 +386,9 @@ def process_thumbnails(json_data):
                         "account_info": result.get('accountInfo', 'Not available'),
                         "thumbnail_url": thumbnail_url,
                         "site": site,
-                        "is_adult": is_adult,  # Add adult site info
-                        "is_social_e_commerce": is_social_e_commerce  # Add social e-commerce info
+                        "resolved_domain": resolved_domain,  # Add resolved domain here
+                        "is_adult": is_adult,
+                        "is_social_e_commerce": is_social_e_commerce
                     })
             except json.JSONDecodeError:
                 print("Failed to decode JSON from ASCII text.")
@@ -343,6 +457,9 @@ def find_available_port(start_port=5000, max_port=65535):
     return None
 
 if __name__ == '__main__':
+    # Load the blocklist when the app starts
+    blocked_domains = load_blocklist(blocklist_url)
+
     port = find_available_port()
     if port:
         print(f"Starting server on port {port}")
