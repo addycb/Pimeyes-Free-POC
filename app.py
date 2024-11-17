@@ -335,21 +335,27 @@ def resolve_domain_whois(domain, cache_file='whois_cache.db', cache_expiry=86400
         return None
 
 def classify_site_with_whois(domain):
-    # If the domain is a subdomain of 'etsystatic.com' or 'etsy.com', convert it to 'etsy.com'
-    if "etsystatic.com" in domain:
-        return "etsy.com"
+    # Mapping of known subdomains to their main domains
+    domain_mappings = {
+        "i.etsystatic.com": "etsy.com",
+        "mir-s3-cdn-cf.behance.net": "behance.net",
+        "i.pinimg.com": "pinterest.com"
+    }
     
-    # If it's a subdomain of 'etsy.com', convert it to 'etsy.com'
-    if domain.endswith("etsy.com"):
-        return "etsy.com"
+    # Check if the domain matches any known subdomains
+    for subdomain, main_domain in domain_mappings.items():
+        if subdomain in domain:
+            return main_domain
     
+    # List of known main domains
+    main_domains = ["etsy.com", "behance.net", "pinterest.com"]
+    
+    # Check if the domain is a subdomain of any known main domains
+    for main_domain in main_domains:
+        if domain.endswith(main_domain):
+            return main_domain
+
     # Resolve WHOIS information for the domain (if it's not a subdomain)
-    if "." in domain:
-        # Extract the base domain (e.g., 'i.etsystatic.com' -> 'etsy.com')
-        base_domain = domain.split('.')[-2] + '.' + domain.split('.')[-1]
-        if base_domain == "etsy.com":
-            return "etsy.com"
-    
     domain_info = resolve_domain_whois(domain)
     
     if not domain_info:
@@ -360,18 +366,6 @@ def classify_site_with_whois(domain):
         return "Social E-Commerce Site"
     
     return "Unclassified Site"
-
-
-
-# Example usage
-domain = "etsystatic.com (etsy)"
-classification = classify_site_with_whois(domain)
-print(f"Domain {domain} is classified as: {classification}")
-
-domain = "etsy.com"
-classification = classify_site_with_whois(domain)
-print(f"Domain {domain} is classified as: {classification}")
-
 
 def process_thumbnails(json_data):
     results = json_data.get('results', [])
