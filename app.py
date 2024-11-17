@@ -320,12 +320,12 @@ def resolve_domain_whois(domain, cache_file='whois_cache.db', cache_expiry=86400
             if domain in cache:
                 cached_data, timestamp = cache[domain]
                 if time.time() - timestamp < cache_expiry:
-                    print(f"Cache hit for domain: {domain}")
+                #     print(f"Cache hit for domain: {domain}")
                     return cached_data
-                else:
-                    print(f"Cache expired for domain: {domain}. Performing WHOIS lookup.")
-            else:
-                print(f"Cache miss for domain: {domain}. Performing WHOIS lookup.")
+                # else:
+                #     print(f"Cache expired for domain: {domain}. Performing WHOIS lookup.")
+            # else:
+            #     print(f"Cache miss for domain: {domain}. Performing WHOIS lookup.")
             
             domain_info = whois.whois(domain)
             cache[domain] = (domain_info, time.time())
