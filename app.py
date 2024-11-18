@@ -9,11 +9,22 @@ import random
 import socket
 import urllib3
 import whois
+import shelve
 from tor_proxy import get_tor_session  # Import the Tor proxy handler
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
 
+
+# Set the allowed image file extensions
+ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'bmp', 'tiff'}
+
+# Set the maximum file size (1.5 MB)
+MAX_FILE_SIZE = 1.5 * 1024 * 1024  # 1.5 MB
+
+# Check if the file is allowed
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 BLOCKLIST_CACHE_FILE = "blocklist_cache.txt"
 CACHE_EXPIRY_TIME = 3600  # Cache expiry time in seconds (1 hour)
@@ -303,31 +314,48 @@ def is_social_e_commerce_site(url):
     ]
     
     # Check if any of the social e-commerce site domains are in the page URL
-def resolve_domain_whois(domain):
+def resolve_domain_whois(domain, cache_file='whois_cache.db', cache_expiry=86400):  # Cache expiry time in seconds (e.g., 1 day)
     try:
-        # Use the whois library to get domain information
-        domain_info = whois.whois(domain)
-        return domain_info
+        with shelve.open(cache_file) as cache:
+            if domain in cache:
+                cached_data, timestamp = cache[domain]
+                if time.time() - timestamp < cache_expiry:
+                #     print(f"Cache hit for domain: {domain}")
+                    return cached_data
+                # else:
+                #     print(f"Cache expired for domain: {domain}. Performing WHOIS lookup.")
+            # else:
+            #     print(f"Cache miss for domain: {domain}. Performing WHOIS lookup.")
+            
+            domain_info = whois.whois(domain)
+            cache[domain] = (domain_info, time.time())
+            return domain_info
     except Exception as e:
         print(f"Error resolving domain: {e}")
         return None
 
 def classify_site_with_whois(domain):
-    # If the domain is a subdomain of 'etsystatic.com' or 'etsy.com', convert it to 'etsy.com'
-    if "etsystatic.com" in domain:
-        return "etsy.com"
+    # Mapping of known subdomains to their main domains
+    domain_mappings = {
+        "i.etsystatic.com": "etsy.com",
+        "mir-s3-cdn-cf.behance.net": "behance.net",
+        "i.pinimg.com": "pinterest.com"
+    }
     
-    # If it's a subdomain of 'etsy.com', convert it to 'etsy.com'
-    if domain.endswith("etsy.com"):
-        return "etsy.com"
+    # Check if the domain matches any known subdomains
+    for subdomain, main_domain in domain_mappings.items():
+        if subdomain in domain:
+            return main_domain
     
+    # List of known main domains
+    main_domains = ["etsy.com", "behance.net", "pinterest.com"]
+    
+    # Check if the domain is a subdomain of any known main domains
+    for main_domain in main_domains:
+        if domain.endswith(main_domain):
+            return main_domain
+
     # Resolve WHOIS information for the domain (if it's not a subdomain)
-    if "." in domain:
-        # Extract the base domain (e.g., 'i.etsystatic.com' -> 'etsy.com')
-        base_domain = domain.split('.')[-2] + '.' + domain.split('.')[-1]
-        if base_domain == "etsy.com":
-            return "etsy.com"
-    
     domain_info = resolve_domain_whois(domain)
     
     if not domain_info:
@@ -338,18 +366,6 @@ def classify_site_with_whois(domain):
         return "Social E-Commerce Site"
     
     return "Unclassified Site"
-
-
-
-# Example usage
-domain = "etsystatic.com (etsy)"
-classification = classify_site_with_whois(domain)
-print(f"Domain {domain} is classified as: {classification}")
-
-domain = "etsy.com"
-classification = classify_site_with_whois(domain)
-print(f"Domain {domain} is classified as: {classification}")
-
 
 def process_thumbnails(json_data):
     results = json_data.get('results', [])
