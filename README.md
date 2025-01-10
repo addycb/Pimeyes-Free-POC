@@ -23,7 +23,7 @@ That's normal; it means it can't find anything on it's database.
 
 # Functions added include:
 
-* Weather the site is from an adult site or market site
+* Whether the site is from an adult site or market site
 * Ability to search VIA TOR SOCKS  (they rate limit with IP)
 * Drag and drop functions, along with paste from clipboard
 
