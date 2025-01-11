@@ -4,15 +4,25 @@ Despite attempts to contact Pimeyes, no response was received, leading to the pu
 It enabling retrieval of unobfuscated web links from search results.  
   
 Use:
+CLI
+1. Clone the Repository "git clone [https://github.com/addycb/Pimeyes-Free-POC.git](https://github.com/addycb/Pimeyes-Free-POC.git)"
+2. Navigate into cloned Repository 
+3. Run the tool :: "python main.py"
+4. Input path of the image you want to search
+5. Save the results
+6. ????
+7. Profit
+
+GUI:
 1. Clone the directory "git clone [https://github.com/Nthompson096/Pimeyes-Free-GUI.git](https://github.com/Nthompson096/Pimeyes-Free-GUI.git)"
 * OR Clone the main git repo directory "git clone [https://github.com/addycb/Pimeyes-Free-POC.git](https://github.com/addycb/Pimeyes-Free-POC.git)"
-3. Navigate into the directory "cd Pimeyes-Free-GUI"
+2. Navigate into Cloned repository (cd)
+3. Navigate into the directory "cd GUI"
 4. Run the tool :: "python main-gui.py"
-5. Select the image you want to search
+5. Input path of the image you want to search
 6. Save the results
 7. ????
 8. Profit
-
 Will still get rate limited to at least 10ish searches, if you really need to search for a face this bad; use a VPN like [mullvad](https://mullvad.net/en) or use TOR SOCKS that's built inside the script.
 Will also add that copy and paste is a hit or miss; some images may be WAY too big for a copy paste; best to save on your device if it doesn't work.
 For images that are not found within it's database, it will throw up this error here:
