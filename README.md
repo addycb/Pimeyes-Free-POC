@@ -1,3 +1,4 @@
+NOTE: Pimeyes has changed their obfuscation, script is currently not working.
 # 👁️ Pimeyes Free
 A proof of concept exploit tool to bypass Pimeyes' obfuscation and provide full premium search results.
 Despite attempts to contact Pimeyes, no response was received, leading to the publication of the tool.
